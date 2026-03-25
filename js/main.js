@@ -316,17 +316,16 @@ function initReviewsSwipe() {
 
   function startDrag(x) {
     isDragging = true;
-    startX = x;
     lastX = x;
-    dragStartPos = position;
     dragVelocity = 0;
   }
 
   function moveDrag(x) {
     if (!isDragging) return;
-    dragVelocity = x - lastX;
+    var diff = x - lastX;
+    dragVelocity = diff;
+    position += diff;
     lastX = x;
-    position = dragStartPos + (x - startX);
   }
 
   function endDrag() {
