@@ -276,43 +276,65 @@ function setLanguage(lang) {
 }
 
 function initReviewsSwipe() {
-  const track = document.querySelector('.reviews-track');
-  if (!track) return;
+  const container = document.querySelector('.reviews-track');
+  if (!container) return;
 
-  // Kill CSS animation entirely -- we'll drive everything with JS
-  track.style.animation = 'none';
+  // Get all review cards and count originals (before duplicates)
+  var allCards = container.querySelectorAll('.review-card');
+  var originalCount = Math.ceil(allCards.length / 2);
 
-  const totalWidth = track.scrollWidth / 2; // half because of duplicated cards
-  let position = 0;
-  let velocity = -0.5; // auto-scroll speed (px per frame)
-  let isDragging = false;
-  let startX = 0;
-  let dragStartPos = 0;
-  let lastX = 0;
-  let dragVelocity = 0;
-  let rafId = null;
+  // Clone originals a few more times to ensure we always have enough to fill the screen
+  var originalCards = [];
+  for (var i = 0; i < originalCount; i++) {
+    originalCards.push(allCards[i]);
+  }
+  // Add two more full sets for safety
+  for (var s = 0; s < 2; s++) {
+    originalCards.forEach(function(card) {
+      container.appendChild(card.cloneNode(true));
+    });
+  }
+
+  // Measure the width of one full set of originals (cards + gaps)
+  var gap = 24; // 1.5rem = 24px
+  var loopWidth = 0;
+  for (var i = 0; i < originalCount; i++) {
+    loopWidth += allCards[i].offsetWidth + gap;
+  }
+
+  var position = 0;
+  var speed = -0.5;
+  var isDragging = false;
+  var isHovering = false;
+  var lastX = 0;
+  var dragVelocity = 0;
 
   function tick() {
-    if (!isDragging) {
-      // Apply drag momentum or default scroll
-      if (Math.abs(dragVelocity) > 0.5) {
+    if (!isDragging && !isHovering) {
+      if (Math.abs(dragVelocity) > 0.3) {
         position += dragVelocity;
-        dragVelocity *= 0.95; // friction
+        dragVelocity *= 0.94;
       } else {
         dragVelocity = 0;
-        position += velocity;
+        position += speed;
+      }
+    } else if (!isDragging && isHovering) {
+      // Still apply momentum when hovering after drag
+      if (Math.abs(dragVelocity) > 0.3) {
+        position += dragVelocity;
+        dragVelocity *= 0.94;
       }
     }
 
-    // Loop seamlessly
-    if (position <= -totalWidth) position += totalWidth;
-    if (position > 0) position -= totalWidth;
+    // Seamless loop -- wrap when we've scrolled one full set
+    if (position <= -loopWidth) position += loopWidth;
+    if (position > 0) position -= loopWidth;
 
-    track.style.transform = 'translateX(' + position + 'px)';
-    rafId = requestAnimationFrame(tick);
+    container.style.transform = 'translateX(' + position + 'px)';
+    requestAnimationFrame(tick);
   }
 
-  rafId = requestAnimationFrame(tick);
+  requestAnimationFrame(tick);
 
   function startDrag(x) {
     isDragging = true;
@@ -332,8 +354,8 @@ function initReviewsSwipe() {
     isDragging = false;
   }
 
-  // Mouse
-  track.addEventListener('mousedown', function(e) {
+  // Mouse drag
+  container.addEventListener('mousedown', function(e) {
     e.preventDefault();
     startDrag(e.clientX);
   });
@@ -342,14 +364,22 @@ function initReviewsSwipe() {
   });
   window.addEventListener('mouseup', endDrag);
 
-  // Touch
-  track.addEventListener('touchstart', function(e) {
+  // Touch drag
+  container.addEventListener('touchstart', function(e) {
     startDrag(e.touches[0].clientX);
   }, { passive: true });
-  track.addEventListener('touchmove', function(e) {
+  container.addEventListener('touchmove', function(e) {
     moveDrag(e.touches[0].clientX);
   }, { passive: true });
-  track.addEventListener('touchend', endDrag);
+  container.addEventListener('touchend', endDrag);
+
+  // Hover pause
+  container.addEventListener('mouseenter', function() {
+    isHovering = true;
+  });
+  container.addEventListener('mouseleave', function() {
+    isHovering = false;
+  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
