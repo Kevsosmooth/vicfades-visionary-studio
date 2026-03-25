@@ -275,6 +275,78 @@ function setLanguage(lang) {
   });
 }
 
+function initReviewsSwipe() {
+  const track = document.querySelector('.reviews-track');
+  if (!track) return;
+
+  let isDragging = false;
+  let startX = 0;
+  let currentTranslate = 0;
+  let prevTranslate = 0;
+  let animationPaused = false;
+
+  function getTranslateX() {
+    const style = window.getComputedStyle(track);
+    const matrix = new DOMMatrix(style.transform);
+    return matrix.m41;
+  }
+
+  function startDrag(x) {
+    isDragging = true;
+    startX = x;
+    prevTranslate = getTranslateX();
+    track.classList.add('dragging');
+  }
+
+  function moveDrag(x) {
+    if (!isDragging) return;
+    const diff = x - startX;
+    currentTranslate = prevTranslate + diff;
+    track.style.transform = 'translateX(' + currentTranslate + 'px)';
+  }
+
+  function endDrag() {
+    if (!isDragging) return;
+    isDragging = false;
+    track.classList.remove('dragging');
+
+    // Resume auto-scroll from current position after 3s
+    clearTimeout(track._resumeTimer);
+    track.classList.add('paused');
+    track._resumeTimer = setTimeout(function() {
+      track.style.transform = '';
+      track.classList.remove('paused');
+    }, 3000);
+  }
+
+  // Mouse events
+  track.addEventListener('mousedown', function(e) {
+    e.preventDefault();
+    startDrag(e.clientX);
+  });
+  window.addEventListener('mousemove', function(e) {
+    moveDrag(e.clientX);
+  });
+  window.addEventListener('mouseup', endDrag);
+
+  // Touch events
+  track.addEventListener('touchstart', function(e) {
+    startDrag(e.touches[0].clientX);
+  }, { passive: true });
+  track.addEventListener('touchmove', function(e) {
+    moveDrag(e.touches[0].clientX);
+  }, { passive: true });
+  track.addEventListener('touchend', endDrag);
+
+  // Pause on hover (desktop)
+  track.addEventListener('mouseenter', function() {
+    if (!isDragging) track.classList.add('paused');
+  });
+  track.addEventListener('mouseleave', function() {
+    if (!isDragging) track.classList.remove('paused');
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initMobileNav();
   initRevealAnimations();
@@ -285,4 +357,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initGalleryLightbox();
   initCounters();
   initBilingualToggle();
+  initReviewsSwipe();
 });
