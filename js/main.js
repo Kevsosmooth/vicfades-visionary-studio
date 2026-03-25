@@ -276,110 +276,85 @@ function setLanguage(lang) {
 }
 
 function initReviewsSwipe() {
-  const container = document.querySelector('.reviews-track');
-  if (!container) return;
+  var track = document.querySelector('.reviews-track');
+  if (!track) return;
 
-  // Get all review cards and count originals (before duplicates)
-  var allCards = container.querySelectorAll('.review-card');
-  var originalCount = Math.ceil(allCards.length / 2);
+  // 1. Snapshot the original cards
+  var originals = Array.from(track.querySelectorAll('.review-card'));
+  if (!originals.length) return;
 
-  // Clone originals a few more times to ensure we always have enough to fill the screen
-  var originalCards = [];
-  for (var i = 0; i < originalCount; i++) {
-    originalCards.push(allCards[i]);
-  }
-  // Add two more full sets for safety
-  for (var s = 0; s < 2; s++) {
-    originalCards.forEach(function(card) {
-      container.appendChild(card.cloneNode(true));
+  // 2. Clone them via JS (exact copies) -- add enough sets to fill any screen
+  for (var i = 0; i < 3; i++) {
+    originals.forEach(function(card) {
+      track.appendChild(card.cloneNode(true));
     });
   }
 
-  // Measure the width of one full set of originals (cards + gaps)
-  var gap = 24; // 1.5rem = 24px
-  var loopWidth = 0;
-  for (var i = 0; i < originalCount; i++) {
-    loopWidth += allCards[i].offsetWidth + gap;
+  // 3. Measure one set width AFTER clones are in DOM
+  //    Use getBoundingClientRect for sub-pixel accuracy
+  var gap = parseFloat(getComputedStyle(track).gap) || 24;
+  var setWidth = 0;
+  for (var i = 0; i < originals.length; i++) {
+    setWidth += originals[i].getBoundingClientRect().width + gap;
   }
 
-  var position = 0;
+  var pos = 0;
   var speed = -0.5;
   var isDragging = false;
-  var isHovering = false;
+  var isHovered = false;
   var lastX = 0;
-  var dragVelocity = 0;
+  var momentum = 0;
 
-  function tick() {
-    if (!isDragging && !isHovering) {
-      if (Math.abs(dragVelocity) > 0.3) {
-        position += dragVelocity;
-        dragVelocity *= 0.94;
+  function loop() {
+    if (!isDragging) {
+      if (isHovered && Math.abs(momentum) < 0.3) {
+        // Paused on hover, no momentum left
+      } else if (Math.abs(momentum) > 0.3) {
+        pos += momentum;
+        momentum *= 0.95;
       } else {
-        dragVelocity = 0;
-        position += speed;
-      }
-    } else if (!isDragging && isHovering) {
-      // Still apply momentum when hovering after drag
-      if (Math.abs(dragVelocity) > 0.3) {
-        position += dragVelocity;
-        dragVelocity *= 0.94;
+        momentum = 0;
+        if (!isHovered) {
+          pos += speed;
+        }
       }
     }
 
-    // Seamless loop -- wrap when we've scrolled one full set
-    if (position <= -loopWidth) position += loopWidth;
-    if (position > 0) position -= loopWidth;
+    // Wrap seamlessly using modulo -- always keep pos in [-setWidth, 0] range
+    pos = pos % setWidth;
+    if (pos > 0) pos -= setWidth;
 
-    container.style.transform = 'translateX(' + position + 'px)';
-    requestAnimationFrame(tick);
+    track.style.transform = 'translateX(' + pos + 'px)';
+    requestAnimationFrame(loop);
   }
+  requestAnimationFrame(loop);
 
-  requestAnimationFrame(tick);
-
-  function startDrag(x) {
+  function onDown(x) {
     isDragging = true;
     lastX = x;
-    dragVelocity = 0;
+    momentum = 0;
   }
-
-  function moveDrag(x) {
+  function onMove(x) {
     if (!isDragging) return;
-    var diff = x - lastX;
-    dragVelocity = diff;
-    position += diff;
+    var dx = x - lastX;
+    momentum = dx;
+    pos += dx;
     lastX = x;
   }
-
-  function endDrag() {
+  function onUp() {
     isDragging = false;
   }
 
-  // Mouse drag
-  container.addEventListener('mousedown', function(e) {
-    e.preventDefault();
-    startDrag(e.clientX);
-  });
-  window.addEventListener('mousemove', function(e) {
-    moveDrag(e.clientX);
-  });
-  window.addEventListener('mouseup', endDrag);
+  track.addEventListener('mousedown', function(e) { e.preventDefault(); onDown(e.clientX); });
+  window.addEventListener('mousemove', function(e) { onMove(e.clientX); });
+  window.addEventListener('mouseup', onUp);
 
-  // Touch drag
-  container.addEventListener('touchstart', function(e) {
-    startDrag(e.touches[0].clientX);
-  }, { passive: true });
-  container.addEventListener('touchmove', function(e) {
-    moveDrag(e.touches[0].clientX);
-  }, { passive: true });
-  container.addEventListener('touchend', endDrag);
+  track.addEventListener('touchstart', function(e) { onDown(e.touches[0].clientX); }, { passive: true });
+  track.addEventListener('touchmove', function(e) { onMove(e.touches[0].clientX); }, { passive: true });
+  track.addEventListener('touchend', onUp);
 
-  // Hover pause
-  container.addEventListener('mouseenter', function() {
-    isHovering = true;
-  });
-  container.addEventListener('mouseleave', function() {
-    isHovering = false;
-  });
+  track.addEventListener('mouseenter', function() { isHovered = true; });
+  track.addEventListener('mouseleave', function() { isHovered = false; });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
