@@ -349,9 +349,37 @@ function initReviewsSwipe() {
   window.addEventListener('mousemove', function(e) { onMove(e.clientX); });
   window.addEventListener('mouseup', onUp);
 
-  track.addEventListener('touchstart', function(e) { onDown(e.touches[0].clientX); }, { passive: true });
-  track.addEventListener('touchmove', function(e) { onMove(e.touches[0].clientX); }, { passive: true });
-  track.addEventListener('touchend', onUp);
+  var touchStartY = 0;
+  var isHorizontalSwipe = null;
+
+  track.addEventListener('touchstart', function(e) {
+    onDown(e.touches[0].clientX);
+    touchStartY = e.touches[0].clientY;
+    isHorizontalSwipe = null;
+  }, { passive: true });
+
+  track.addEventListener('touchmove', function(e) {
+    var dx = Math.abs(e.touches[0].clientX - lastX);
+    var dy = Math.abs(e.touches[0].clientY - touchStartY);
+
+    // Decide direction on first meaningful move
+    if (isHorizontalSwipe === null && (dx > 5 || dy > 5)) {
+      isHorizontalSwipe = dx > dy;
+    }
+
+    if (isHorizontalSwipe) {
+      e.preventDefault();
+      onMove(e.touches[0].clientX);
+    } else {
+      // Vertical scroll -- release drag so page scrolls normally
+      isDragging = false;
+    }
+  }, { passive: false });
+
+  track.addEventListener('touchend', function() {
+    onUp();
+    isHorizontalSwipe = null;
+  });
 
   track.addEventListener('mouseenter', function() { isHovered = true; });
   track.addEventListener('mouseleave', function() { isHovered = false; });
