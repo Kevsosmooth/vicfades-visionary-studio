@@ -248,23 +248,12 @@ h1, h2, h3, h4 {
 .reviews-track {
   display: flex;
   gap: 1.5rem;
-  animation: scroll-reviews 35s linear infinite;
   cursor: grab;
   user-select: none;
+  will-change: transform;
 }
 .reviews-track:active {
   cursor: grabbing;
-}
-.reviews-track.dragging {
-  animation: none;
-  transition: none;
-}
-.reviews-track.paused {
-  animation-play-state: paused;
-}
-@keyframes scroll-reviews {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
 }
 .review-card {
   min-width: 320px;

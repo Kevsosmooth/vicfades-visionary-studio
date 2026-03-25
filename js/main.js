@@ -279,47 +279,61 @@ function initReviewsSwipe() {
   const track = document.querySelector('.reviews-track');
   if (!track) return;
 
+  // Kill CSS animation entirely -- we'll drive everything with JS
+  track.style.animation = 'none';
+
+  const totalWidth = track.scrollWidth / 2; // half because of duplicated cards
+  let position = 0;
+  let velocity = -0.5; // auto-scroll speed (px per frame)
   let isDragging = false;
   let startX = 0;
-  let currentTranslate = 0;
-  let prevTranslate = 0;
-  let animationPaused = false;
+  let dragStartPos = 0;
+  let lastX = 0;
+  let dragVelocity = 0;
+  let rafId = null;
 
-  function getTranslateX() {
-    const style = window.getComputedStyle(track);
-    const matrix = new DOMMatrix(style.transform);
-    return matrix.m41;
+  function tick() {
+    if (!isDragging) {
+      // Apply drag momentum or default scroll
+      if (Math.abs(dragVelocity) > 0.5) {
+        position += dragVelocity;
+        dragVelocity *= 0.95; // friction
+      } else {
+        dragVelocity = 0;
+        position += velocity;
+      }
+    }
+
+    // Loop seamlessly
+    if (position <= -totalWidth) position += totalWidth;
+    if (position > 0) position -= totalWidth;
+
+    track.style.transform = 'translateX(' + position + 'px)';
+    rafId = requestAnimationFrame(tick);
   }
+
+  rafId = requestAnimationFrame(tick);
 
   function startDrag(x) {
     isDragging = true;
     startX = x;
-    prevTranslate = getTranslateX();
-    track.classList.add('dragging');
+    lastX = x;
+    dragStartPos = position;
+    dragVelocity = 0;
   }
 
   function moveDrag(x) {
     if (!isDragging) return;
-    const diff = x - startX;
-    currentTranslate = prevTranslate + diff;
-    track.style.transform = 'translateX(' + currentTranslate + 'px)';
+    dragVelocity = x - lastX;
+    lastX = x;
+    position = dragStartPos + (x - startX);
   }
 
   function endDrag() {
-    if (!isDragging) return;
     isDragging = false;
-    track.classList.remove('dragging');
-
-    // Resume auto-scroll from current position after 3s
-    clearTimeout(track._resumeTimer);
-    track.classList.add('paused');
-    track._resumeTimer = setTimeout(function() {
-      track.style.transform = '';
-      track.classList.remove('paused');
-    }, 3000);
   }
 
-  // Mouse events
+  // Mouse
   track.addEventListener('mousedown', function(e) {
     e.preventDefault();
     startDrag(e.clientX);
@@ -329,7 +343,7 @@ function initReviewsSwipe() {
   });
   window.addEventListener('mouseup', endDrag);
 
-  // Touch events
+  // Touch
   track.addEventListener('touchstart', function(e) {
     startDrag(e.touches[0].clientX);
   }, { passive: true });
@@ -337,14 +351,6 @@ function initReviewsSwipe() {
     moveDrag(e.touches[0].clientX);
   }, { passive: true });
   track.addEventListener('touchend', endDrag);
-
-  // Pause on hover (desktop)
-  track.addEventListener('mouseenter', function() {
-    if (!isDragging) track.classList.add('paused');
-  });
-  track.addEventListener('mouseleave', function() {
-    if (!isDragging) track.classList.remove('paused');
-  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
